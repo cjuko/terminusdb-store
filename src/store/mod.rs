@@ -16,6 +16,7 @@ use crate::storage::{CachedLayerStore, LabelStore, LayerStore, LockingHashMapLay
 use crate::structure::{FromLexical, TypedDictEntry};
 
 use std::io;
+use std::iter::empty;
 
 use async_trait::async_trait;
 use futures::TryFutureExt;
@@ -441,6 +442,25 @@ impl StoreLayer {
         let name_dict = self.store.layer_store.get_node_dictionary(self.layer.name()).await?.unwrap();
         let string_iter = name_dict.into_iter().map(|v| FromLexical::<String>::from_lexical(v.into_buf()));
         Ok(Box::new(string_iter))
+    }
+
+    pub async fn value_triple_additions_p(&self, predicate: String) -> io::Result<Box<dyn Iterator<Item = ValueTriple> + Send>> {
+        let pid = match self.layer.predicate_id(&predicate.as_str()) {
+            Some(pid) => pid,
+            None => return Ok(Box::new(empty()))
+        };
+        let _layer = self.store.layer_store.get_layer(self.layer.name()).await?.unwrap();
+
+        let result_iter = self.store.layer_store.triple_additions_p(self.layer.name(), pid).await?;
+        Ok(Box::new(result_iter.into_iter().map(move |t| {
+                let subject = _layer.id_subject(t.subject).unwrap_or("Subject not found".into());
+                let object = match _layer.id_object(t.object) {
+                    Some(obj) => obj,
+                    None => ObjectType::Node("Not found".into())
+                };
+
+                ValueTriple { subject, predicate: predicate.clone(), object }
+            })))
     }
 
     pub async fn predicates(&self) -> io::Result<Box<dyn Iterator<Item = String> + Send>> {

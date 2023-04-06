@@ -306,6 +306,10 @@ impl SyncStoreLayer {
         task_sync(self.inner.triple_additions_p(predicate))
     }
 
+    pub fn value_triple_additions_p(&self, predicate: String) -> io::Result<Box<dyn Iterator<Item = ValueTriple> + Send>> {
+        task_sync(self.inner.value_triple_additions_p(predicate))
+    }
+
     /// Returns an iterator over all layer removals that share a particular predicate.
     ///
     /// Since this operation will involve io when this layer is a
