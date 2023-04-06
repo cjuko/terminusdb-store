@@ -117,18 +117,24 @@ impl DirectoryLayerStore {
 impl PersistentLayerStore for DirectoryLayerStore {
     type File = FileBackedStore;
     async fn directories(&self) -> io::Result<Vec<[u32; 5]>> {
-        let mut stream = fs::read_dir(&self.path).await?;
+        let mut index_directories = fs::read_dir(&self.path).await?;
         let mut result = Vec::new();
-        while let Some(direntry) = stream.next_entry().await? {
-            if direntry.file_type().await?.is_dir() {
-                let os_name = direntry.file_name();
-                let name = os_name.to_str().ok_or_else(|| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "unexpected non-utf8 directory name",
-                    )
-                })?;
-                result.push(string_to_name(name)?);
+
+        while let Some(index_entry) = index_directories.next_entry().await? {
+            if index_entry.file_type().await?.is_dir() {
+                let mut layer_dirs = fs::read_dir(index_entry.path()).await?;
+                while let Some(layer_entry) = layer_dirs.next_entry().await? {
+                    if index_entry.file_type().await?.is_dir() {
+                        let os_name = layer_entry.file_name();
+                        let name = os_name.to_str().ok_or_else(|| {
+                            io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "unexpected non-utf8 directory name",
+                            )
+                        })?;
+                        result.push(string_to_name(name)?);
+                    }
+                }
             }
         }
 

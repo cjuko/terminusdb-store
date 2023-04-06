@@ -193,22 +193,29 @@ impl ArchiveBackend for DirectoryArchiveBackend {
 #[async_trait]
 impl ArchiveMetadataBackend for DirectoryArchiveBackend {
     async fn get_layer_names(&self) -> io::Result<Vec<[u32; 5]>> {
-        let mut stream = fs::read_dir(&self.path).await?;
+
+        let mut index_directories = fs::read_dir(&self.path).await?;
         let mut result = Vec::new();
-        while let Some(direntry) = stream.next_entry().await? {
-            let os_name = direntry.file_name();
-            let name = os_name.to_str().ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "unexpected non-utf8 directory name",
-                )
-            })?;
-            if name.ends_with(".larch") && direntry.file_type().await?.is_file() {
-                let name_component = &name[..name.len() - 6];
-                result.push(string_to_name(name_component)?);
+
+        while let Some(index_entry) = index_directories.next_entry().await? {
+            if index_entry.file_type().await?.is_dir() {
+                let mut layer_dirs = fs::read_dir(index_entry.path()).await?;
+                while let Some(layer_entry) = layer_dirs.next_entry().await? {
+                    let os_name = layer_entry.file_name();
+                    let name = os_name.to_str().ok_or_else(|| {
+                        io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "unexpected non-utf8 directory name",
+                        )
+                    })?;
+
+                    if name.ends_with(".larch") && layer_entry.file_type().await?.is_file() {
+                        let name_component = &name[..name.len() - 6];
+                        result.push(string_to_name(name_component)?);
+                    }
+                }
             }
         }
-
         Ok(result)
     }
 

@@ -13,11 +13,12 @@ use crate::storage::archive::{
 use crate::storage::directory::{DirectoryLabelStore, DirectoryLayerStore};
 use crate::storage::memory::{MemoryLabelStore, MemoryLayerStore};
 use crate::storage::{CachedLayerStore, LabelStore, LayerStore, LockingHashMapLayerCache};
-use crate::structure::TypedDictEntry;
+use crate::structure::{FromLexical, TypedDictEntry};
 
 use std::io;
 
 use async_trait::async_trait;
+use futures::TryFutureExt;
 use rayon::prelude::*;
 
 /// A store, storing a set of layers and database labels pointing to these layers.
@@ -434,6 +435,24 @@ impl StoreLayer {
             .layer_store
             .triple_additions_s(self.layer.name(), subject)
             .await
+    }
+
+    pub async fn nodes(&self) -> io::Result<Box<dyn Iterator<Item = String> + Send>> {
+        let name_dict = self.store.layer_store.get_node_dictionary(self.layer.name()).await?.unwrap();
+        let string_iter = name_dict.into_iter().map(|v| FromLexical::<String>::from_lexical(v.into_buf()));
+        Ok(Box::new(string_iter))
+    }
+
+    pub async fn predicates(&self) -> io::Result<Box<dyn Iterator<Item = String> + Send>> {
+        let predicate_dict = self.store.layer_store.get_predicate_dictionary(self.layer.name()).await?.unwrap();
+        let string_iter = predicate_dict.into_iter().map(|v| FromLexical::<String>::from_lexical(v.into_buf()));
+        Ok(Box::new(string_iter))
+    }
+
+    pub async fn values(&self) -> io::Result<Box<dyn Iterator<Item = ObjectType> + Send>> {
+        let object_dict = self.store.layer_store.get_value_dictionary(self.layer.name()).await?.unwrap();
+        let string_iter = object_dict.into_iter().map(|v| ObjectType::Value(v));
+        Ok(Box::new(string_iter))
     }
 
     /// Returns a future that yields an iterator over all layer removals that share a particular subject.
@@ -858,6 +877,11 @@ impl Store {
     pub async fn labels(&self) -> io::Result<Vec<String>> {
         let labels = self.label_store.labels().await?;
         Ok(labels.iter().map(|label| label.name.to_string()).collect())
+    }
+
+    /// Return list of layers in current store
+    pub async fn layers(&self) -> io::Result<Vec<[u32;5]>> {
+        self.layer_store.layers().await
     }
 
     /// Retrieve a layer with the given name from the layer store this Store was initialized with.

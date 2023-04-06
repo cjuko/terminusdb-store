@@ -247,6 +247,19 @@ impl SyncStoreLayer {
         task_sync(self.inner.triple_additions_s(subject))
     }
 
+    pub fn nodes(&self) -> io::Result<Box<dyn Iterator<Item = String> + Send>> {
+        task_sync(self.inner.nodes())
+    }
+
+    pub fn predicates(&self) -> io::Result<Box<dyn Iterator<Item = String> + Send>> {
+        task_sync(self.inner.predicates())
+    }
+
+    pub fn values(&self) -> io::Result<Box<dyn Iterator<Item = ObjectType> + Send>> {
+        task_sync(self.inner.values())
+    }
+
+
     /// Returns an iterator over all layer removals that share a particular subject.
     ///
     /// Since this operation will involve io when this layer is a
@@ -536,6 +549,10 @@ impl SyncStore {
         let inner = task_sync(self.inner.open(label));
 
         inner.map(|i| i.map(SyncNamedGraph::wrap))
+    }
+
+    pub fn layers(&self) -> Result<Vec<[u32; 5]>, io::Error> {
+        task_sync(self.inner.layers())
     }
 
     /// Delete an existing database with the given name. Returns true if this database was deleted
