@@ -19,7 +19,6 @@ use std::io;
 use std::iter::empty;
 
 use async_trait::async_trait;
-use futures::TryFutureExt;
 use rayon::prelude::*;
 
 /// A store, storing a set of layers and database labels pointing to these layers.

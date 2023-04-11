@@ -8,6 +8,7 @@ pub mod id_map;
 mod internal;
 mod layer;
 mod simple_builder;
+mod query;
 
 pub use id_map::*;
 pub use internal::*;
